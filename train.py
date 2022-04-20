@@ -9,9 +9,9 @@ from MCTS_pure import MCTSPlayer as MCTS_Pure
 
 class TrainPipeline(object):
     def __init__(self, init_model=None):
-        self.grid_shape = (6, 6)
+        self.grid_shape = (15, 15)
         self.learning_rate = 2e-3
-        self.n = 4
+        self.n = 5
         self.lr_multiplier = 1.0
         self.n_simulation = 400
         self.c_puct = 5
@@ -22,7 +22,7 @@ class TrainPipeline(object):
         self.epochs = 5
         self.kl_targ = 50
         self.check_freq = 50
-        self.game_batch_num = 1
+        self.game_batch_num = 100
         self.best_win_ratio = 0.0
         self.pure_mcts_simulation_num = 1000
         self.episode_len = None
@@ -59,7 +59,7 @@ class TrainPipeline(object):
 
     def collect_selfplay_data(self, n_games=1):
         for i in range(n_games):
-            winner, play_data = self.game.start_self_play(self.mcts_player, is_shown=1, temp=self.temp)
+            winner, play_data = self.game.start_self_play(self.mcts_player, is_shown=0, temp=self.temp)
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
             play_data = self.augment_data(play_data)

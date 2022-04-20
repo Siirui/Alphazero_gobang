@@ -25,12 +25,12 @@ class MCTS(object):
         player = state.player_turn
         winner = None
         for index in range(limit):
-            winner = state.isEndGame
+            winner = state.checkForEndGame()
             if winner != 0:
                 break
             action_probs = roll_out_function(state)
             max_action = max(action_probs, key=itemgetter(1))[0]
-            state, _, _ = state.takeAction(max_action)
+            state.takeAction(max_action)
         else:
             print("WARNING: rollout reached move limit")
         if winner == 2:
@@ -44,15 +44,15 @@ class MCTS(object):
             if node.is_leaf():
                 break
             action, node = node.select(self.c_puct)
-            state, _, _ = state.takeAction(action)
+            state.takeAction(action)
 
-        action_probs, _ = self.policy(state)
-        winner = state.isEndGame
+        action_probs = self.policy(state)
+        winner = state.checkForEndGame()
         if winner == 0:
             node.expand(action_probs)
 
         leaf_value = self._evaluate_rollout(state)
-        node.update_recursive(-leaf_value)
+        node.back_fill(-leaf_value)
 
     def get_move(self, state):
         for n in range(self.n_simulation):

@@ -35,7 +35,7 @@ class Net(nn.Module):
         # action policy layers
         x_act = F.relu(self.act_conv1(x))
         x_act = x_act.view(-1, 4 * self.grid_shape[0] * self.grid_shape[1])
-        x_act = F.log_softmax(self.act_fc1(x_act), dim=0)
+        x_act = F.log_softmax(self.act_fc1(x_act), dim=1)
         # state value layers
         x_val = F.relu(self.val_conv1(x))
         x_val = x_val.view(-1, 2 * self.grid_shape[0] * self.grid_shape[1])
@@ -45,12 +45,17 @@ class Net(nn.Module):
         return x_act, x_val
 
 
-class PolicyValueNet(object, use_gpu=False):
-    def __init__(self, grid_shape, model_file=None):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+class PolicyValueNet(object):
+    def __init__(self, grid_shape, model_file=None, use_gpu=False):
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.use_gpu = use_gpu
         self.grid_shape = grid_shape
         self.l2_const = 1e-4
-        self.policy_value_net = Net(grid_shape).to(self.device)
+        if self.use_gpu:
+            self.policy_value_net = Net(grid_shape).cuda()
+        else:
+            self.policy_value_net = Net(grid_shape)
+
         self.optimizer = optim.Adam(self.policy_value_net.parameters(), weight_decay=self.l2_const)
 
         if model_file:
@@ -59,7 +64,7 @@ class PolicyValueNet(object, use_gpu=False):
 
     def policy_value(self, state_batch):
         """返回Action的概率和state value"""
-        if self.device == torch.device("cuda"):
+        if self.use_gpu:
             state_batch = torch.FloatTensor(np.array(state_batch)).cuda()
             log_act_probs, value = self.policy_value_net(state_batch)
             act_probs = np.exp(log_act_probs.cpu().detach().numpy())
@@ -67,15 +72,23 @@ class PolicyValueNet(object, use_gpu=False):
         else:
             state_batch = torch.FloatTensor(np.array(state_batch))
             log_act_probs, value = self.policy_value_net(state_batch)
-            act_probs = np.exp(log_act_probs.item().numpy())
-            return act_probs, value.item().numpy()
+            act_probs = np.exp(log_act_probs.detach().numpy())
+            return act_probs, value.detach().numpy()
 
     def policy_value_function(self, state):
         allowed_actions = state.allowedActions
         current_state = np.ascontiguousarray(state.get_current_state().reshape(
             -1, 4, self.grid_shape[0], self.grid_shape[1]))
-        log_act_probs, value = self.policy_value_net(torch.from_numpy(current_state).to(self.device).float())
-        act_probs = np.exp(log_act_probs.cpu().detach().numpy().flatten())
+        if self.use_gpu:
+            log_act_probs, value = self.policy_value_net(
+                torch.from_numpy(current_state).cuda().float()
+            )
+            act_probs = np.exp(log_act_probs.cpu().detach().numpy().flatten())
+        else:
+            log_act_probs, value = self.policy_value_net(
+                torch.from_numpy(current_state).float()
+            )
+            act_probs = np.exp(log_act_probs.detach().numpy().flatten())
         act_probs = zip(allowed_actions, act_probs[allowed_actions])  # modified
         value = value.item()
         return act_probs, value
@@ -89,9 +102,14 @@ class PolicyValueNet(object, use_gpu=False):
         torch.save(net_params, model_file)
 
     def train_step(self, state_batch, mcts_probs, winner_batch, lr):
-        state_batch = torch.FloatTensor(np.array(state_batch)).to(self.device)
-        mcts_probs = torch.FloatTensor(np.array(mcts_probs)).to(self.device)
-        winner_batch = torch.FloatTensor(np.array(winner_batch)).to(self.device)
+        if self.use_gpu:
+            state_batch = torch.FloatTensor(np.array(state_batch)).cuda()
+            mcts_probs = torch.FloatTensor(np.array(mcts_probs)).cuda()
+            winner_batch = torch.FloatTensor(np.array(winner_batch)).cuda()
+        else:
+            state_batch = torch.FloatTensor(np.array(state_batch))
+            mcts_probs = torch.FloatTensor(np.array(mcts_probs))
+            winner_batch = torch.FloatTensor(np.array(winner_batch))
 
         self.optimizer.zero_grad()
         for param_group in self.optimizer.param_groups:

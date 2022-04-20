@@ -67,7 +67,7 @@ class Node(object):
 
 
 class MCTS(object):
-    def __init__(self, policy_value_function, c_puct, n_simulation):
+    def __init__(self, policy_value_function, c_puct, n_simulation=10000):
         self.root = Node(None, 1.0)
         self.policy = policy_value_function
         self.c_puct = c_puct
@@ -77,7 +77,7 @@ class MCTS(object):
         node = self.root
         while not node.is_leaf():
             action, node = node.select(self.c_puct)
-            state = state.takeAction(action)
+            state.takeAction(action)
 
         action_probs, leaf_value = self.policy(state)
 

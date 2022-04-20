@@ -10,8 +10,8 @@ class GameState(object):
         self.grid_shape = grid_shape
         self.player_turn = player_turn
         self.board = self._convertNumber2binary()
-        # self.binary = self._binary()
         self.id = self._convertState2Id()
+        # self.binary = self._binary()
         self.allowedActions = list(range(self.grid_shape[0] * self.grid_shape[1]))
         # self.isEndGame = self._checkForEndGame()
 
@@ -88,40 +88,110 @@ class GameState(object):
 
     def checkForEndGame(self):
         """判断当前棋局是否结束并返回赢家是谁"""
-
-        # 检查横向
+        pos_x, pos_y = None, None
         for i in range(self.grid_shape[0]):
-            for j in range(0, self.grid_shape[1] - self.n + 1):
-                count = 0
-                for k in range(self.n):
-                    count += self.board[i * self.grid_shape[1] + j + k]
-                if abs(count) == self.n:
-                    return count // self.n
-        # 检查纵向
-        for i in range(0, self.grid_shape[0] - self.n + 1):
-            for j in range(self.grid_shape[0]):
-                count = 0
-                for k in range(self.n):
-                    count += self.board[(i + k) * self.grid_shape[1] + j]
-                if abs(count) == self.n:
-                    return count // self.n
-        # 检查左上到右下的对角线
-        for i in range(0, self.grid_shape[0] - self.n + 1):
-            for j in range(0, self.grid_shape[1] - self.n + 1):
-                count = 0
-                for k in range(self.n):
-                    count += self.board[(i + k) * self.grid_shape[1] + j + k]
-                if abs(count) == self.n:
-                    return count // self.n
+            if pos_x is not None and pos_y is not None:
+                break
+            for j in range(self.grid_shape[1]):
+                if self.display_board[i * self.grid_shape[1] + j] == self.steps - 1:
+                    pos_x, pos_y = i, j
+                    break
 
-        # 检查右上到左下的对角线
-        for i in range(0, self.grid_shape[0] - self.n + 1):
-            for j in range(self.n - 1, self.grid_shape[1]):
-                count = 0
-                for k in range(self.n):
-                    count += self.board[(i + k) * self.grid_shape[1] + j - k]
-                if abs(count) == self.n:
-                    return count // self.n
+        color = self.board[pos_x * self.grid_shape[1] + pos_y]
+        if color == 0:
+            return 0
+        # 检查横向
+        count = 1
+        for i in range(1, self.n):
+            if pos_y + i >= self.grid_shape[1] or color != self.board[pos_x * self.grid_shape[1] + pos_y + i]:
+                break
+            else:
+                count += 1
+        for i in range(1, self.n):
+            if pos_y - i < 0 or color != self.board[pos_x * self.grid_shape[1] + pos_y - i]:
+                break
+            else:
+                count += 1
+        if count == self.n:
+            return -self.player_turn
+
+        # 检查纵向
+        count = 1
+        for i in range(1, self.n):
+            if pos_x + i >= self.grid_shape[0] or color != self.board[(pos_x + i) * self.grid_shape[1] + pos_y]:
+                break
+            else:
+                count += 1
+        for i in range(1, self.n):
+            if pos_x - i < 0 or color != self.board[(pos_x - i) * self.grid_shape[1] + pos_y]:
+                break
+            else:
+                count += 1
+        if count == self.n:
+            return -self.player_turn
+
+        # 检查左上到右下对角线
+        count = 1
+        for i in range(1, self.n):
+            if pos_x + i >= self.grid_shape[0] or pos_y + i >= self.grid_shape[1] or color != self.board[(pos_x + i) * self.grid_shape[1] + pos_y + i]:
+                break
+            else:
+                count += 1
+        for i in range(1, self.n):
+            if pos_x - i < 0 or pos_y - i < 0 or color != self.board[(pos_x - i) * self.grid_shape[1] + pos_y - i]:
+                break
+            else:
+                count += 1
+        if count == self.n:
+            return -self.player_turn
+
+        # 检查右上到左下对角线
+        count = 1
+        for i in range(1, self.n):
+            if pos_x + i >= self.grid_shape[0] or pos_y - i < 0 or color != self.board[(pos_x + i) * self.grid_shape[1] + pos_y - i]:
+                break
+            else:
+                count += 1
+        for i in range(1, self.n):
+            if pos_x - i < 0 or pos_y + i >= self.grid_shape[1] or color != self.board[(pos_x - i) * self.grid_shape[1] + pos_y + i]:
+                break
+            else:
+                count += 1
+        if count == self.n:
+            return -self.player_turn
+        # # 检查横向
+        # for i in range(self.grid_shape[0]):
+        #     for j in range(0, self.grid_shape[1] - self.n + 1):
+        #         count = 0
+        #         for k in range(self.n):
+        #             count += self.board[i * self.grid_shape[1] + j + k]
+        #         if abs(count) == self.n:
+        #             return count // self.n
+        # # 检查纵向
+        # for i in range(0, self.grid_shape[0] - self.n + 1):
+        #     for j in range(self.grid_shape[0]):
+        #         count = 0
+        #         for k in range(self.n):
+        #             count += self.board[(i + k) * self.grid_shape[1] + j]
+        #         if abs(count) == self.n:
+        #             return count // self.n
+        # # 检查左上到右下的对角线
+        # for i in range(0, self.grid_shape[0] - self.n + 1):
+        #     for j in range(0, self.grid_shape[1] - self.n + 1):
+        #         count = 0
+        #         for k in range(self.n):
+        #             count += self.board[(i + k) * self.grid_shape[1] + j + k]
+        #         if abs(count) == self.n:
+        #             return count // self.n
+        #
+        # # 检查右上到左下的对角线
+        # for i in range(0, self.grid_shape[0] - self.n + 1):
+        #     for j in range(self.n - 1, self.grid_shape[1]):
+        #         count = 0
+        #         for k in range(self.n):
+        #             count += self.board[(i + k) * self.grid_shape[1] + j - k]
+        #         if abs(count) == self.n:
+        #             return count // self.n
 
         if len(self.allowedActions) == 0:
             return 2  # tie
@@ -129,16 +199,18 @@ class GameState(object):
         return 0
 
     def takeAction(self, action):
-        new_display_board = np.array(self.display_board)
-        new_display_board[action] = self.steps
+        #new_display_board = np.array(self.display_board)
+        self.display_board[action] = self.steps
         self.allowedActions.remove(action)
-        new_state = GameState(new_display_board, -self.player_turn, self.steps + 1, self.grid_shape, self.n)
-        return new_state
+        # new_state = GameState(new_display_board, -self.player_turn, self.steps + 1, self.grid_shape, self.n)
+        self.board = self._convertNumber2binary()
+        self.steps += 1
+        self.player_turn = -self.player_turn
+        #return new_state
 
 
 class Game(object):
     def __init__(self, grid_shape=(8, 8), n=5):
-        self.currentPlayer = 1
         self.grid_shape = grid_shape
         self.n = n
         self.gameState = GameState(np.zeros(self.grid_shape[0] * self.grid_shape[1], dtype=np.int32), 1, 1, self.grid_shape, n=n)
@@ -177,9 +249,9 @@ class Game(object):
         if is_shown:
             self.graphic(player1.player, player2.player)
         while True:
-            player_in_turn = players[self.currentPlayer]
+            player_in_turn = players[self.gameState.player_turn]
             move = player_in_turn.get_action(self.gameState)
-            self.gameState = self.gameState.takeAction(move)
+            self.gameState.takeAction(move)
             if is_shown:
                 self.graphic(player1.player, player2.player)
             winner = self.gameState.checkForEndGame()
@@ -200,7 +272,7 @@ class Game(object):
             states.append(self.gameState.get_current_state())
             mcts_probs.append(move_probs)
             current_players.append(self.currentPlayer)
-            self.gameState = self.gameState.takeAction(move)
+            self.gameState.takeAction(move)
 
             if is_shown:
                 self.graphic(1, -1)
@@ -218,7 +290,6 @@ class Game(object):
                     else:
                         print(f"Game end. Winner is: {winner}")
                 return winner, zip(states, mcts_probs, winners_z)
-
 
 
 
