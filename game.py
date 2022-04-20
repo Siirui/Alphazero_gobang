@@ -3,17 +3,17 @@ import logging
 
 
 class GameState(object):
-    def __init__(self, board, player_turn, steps, grid_shape):
+    def __init__(self, board, player_turn, steps, grid_shape, n):
         self.display_board = board
         self.steps = steps
+        self.n = n
         self.grid_shape = grid_shape
         self.player_turn = player_turn
         self.board = self._convertNumber2binary()
-        self.binary = self._binary()
+        # self.binary = self._binary()
         self.id = self._convertState2Id()
-        self.allowedActions = self._allowedActions()
-        self.value = self._getValue()
-        self.isEndGame = self._checkForEndGame()
+        self.allowedActions = list(range(self.grid_shape[0] * self.grid_shape[1]))
+        # self.isEndGame = self._checkForEndGame()
 
     def get_current_state(self):
         """
@@ -86,105 +86,67 @@ class GameState(object):
         _id = ''.join(map(str, position))
         return _id
 
-    def _allowedActions(self):
-        """
-        计算当前局面合法的走法
-        Returns:
-
-        """
-        allowed = []
-        for index in range(len(self.board)):
-            if self.board[index] == 0:
-                allowed.append(index)
-
-        return allowed
-
-    def _checkForEndGame(self):
+    def checkForEndGame(self):
         """判断当前棋局是否结束并返回赢家是谁"""
 
         # 检查横向
         for i in range(self.grid_shape[0]):
-            for j in range(0, self.grid_shape[1] - 5 + 1):
+            for j in range(0, self.grid_shape[1] - self.n + 1):
                 count = 0
-                for k in range(5):
+                for k in range(self.n):
                     count += self.board[i * self.grid_shape[1] + j + k]
-                if abs(count) == 5:
-                    return count // 5
+                if abs(count) == self.n:
+                    return count // self.n
         # 检查纵向
-        for i in range(0, self.grid_shape[0] - 5 + 1):
+        for i in range(0, self.grid_shape[0] - self.n + 1):
             for j in range(self.grid_shape[0]):
                 count = 0
-                for k in range(5):
+                for k in range(self.n):
                     count += self.board[(i + k) * self.grid_shape[1] + j]
-                if abs(count) == 5:
-                    return count // 5
+                if abs(count) == self.n:
+                    return count // self.n
         # 检查左上到右下的对角线
-        for i in range(0, self.grid_shape[0] - 5 + 1):
-            for j in range(0, self.grid_shape[1] - 5 + 1):
+        for i in range(0, self.grid_shape[0] - self.n + 1):
+            for j in range(0, self.grid_shape[1] - self.n + 1):
                 count = 0
-                for k in range(5):
+                for k in range(self.n):
                     count += self.board[(i + k) * self.grid_shape[1] + j + k]
-                if abs(count) == 5:
-                    return count // 5
+                if abs(count) == self.n:
+                    return count // self.n
 
         # 检查右上到左下的对角线
-        for i in range(0, self.grid_shape[0] - 5 + 1):
-            for j in range(4, self.grid_shape[1]):
+        for i in range(0, self.grid_shape[0] - self.n + 1):
+            for j in range(self.n - 1, self.grid_shape[1]):
                 count = 0
-                for k in range(5):
+                for k in range(self.n):
                     count += self.board[(i + k) * self.grid_shape[1] + j - k]
-                if abs(count) == 5:
-                    return count // 5
+                if abs(count) == self.n:
+                    return count // self.n
 
         if len(self.allowedActions) == 0:
             return 2  # tie
         # 未结束
         return 0
 
-    def _getValue(self):
-        """
-        返回当前局面的得分
-        Returns: (v1, v2)
-            v1为对当前玩家的得分
-            v2为对对手的得分
-        """
-        winner = self._checkForEndGame()
-        if winner == 0:
-            return 0, 0
-        else:
-            return winner, -winner
-
     def takeAction(self, action):
         new_display_board = np.array(self.display_board)
         new_display_board[action] = self.steps
-
-        new_state = GameState(new_display_board, -self.player_turn, self.steps + 1, self.grid_shape)
-        value = 0
-        done = 0
-        if new_state.isEndGame == 1:
-            value = new_state.value[0]
-            done = 1
-
-        return new_state, value, done
-
-    def render(self, logger):
-        for r in range(self.grid_shape[0]):
-            logger.info([x for x in self.display_board[self.grid_shape[0] * r: (self.grid_shape[0] * r + self.grid_shape[1])]])
-        logger.info('--------------')
+        self.allowedActions.remove(action)
+        new_state = GameState(new_display_board, -self.player_turn, self.steps + 1, self.grid_shape, self.n)
+        return new_state
 
 
 class Game(object):
-    def __init__(self, grid_shape=(8, 8)):
+    def __init__(self, grid_shape=(8, 8), n=5):
         self.currentPlayer = 1
         self.grid_shape = grid_shape
-        self.gameState = GameState(np.zeros(self.grid_shape[0] * self.grid_shape[1], dtype=np.int32), 1, 1, self.grid_shape)
+        self.n = n
+        self.gameState = GameState(np.zeros(self.grid_shape[0] * self.grid_shape[1], dtype=np.int32), 1, 1, self.grid_shape, n=n)
         self.actionSpace = np.zeros(self.grid_shape[0] * self.grid_shape[1], dtype=np.int32)
         self.name = "Gobang"
-        self.state_size = len(self.gameState.binary)
-        self.action_size = len(self.actionSpace)
 
     def reset(self, start_player=1):
-        GameState(np.zeros(self.grid_shape[0] * self.grid_shape[1], dtype=np.int32), 1, 1, self.grid_shape)
+        self.gameState = GameState(np.zeros(self.grid_shape[0] * self.grid_shape[1], dtype=np.int32), 1, 1, self.grid_shape, self.n)
         self.currentPlayer = start_player
         return self.gameState
     
@@ -193,13 +155,16 @@ class Game(object):
         print("Player", player2, "with O".rjust(3))
         print()
         for x in range(self.grid_shape[1]):
-            print("{0:4}".format(x), end='')
+            print("{0:8}".format(x), end='')
         print('\r\n')
         for i in range(self.grid_shape[0]):
-            print("{0:2d}".format(i), end='')
+            print("{0:4d}".format(i), end='')
             for j in range(self.grid_shape[1]):
                 loc = i * self.grid_shape[1] + j
-                print(str(self.gameState.display_board[loc]).center(4), end='')
+                if self.gameState.display_board[loc] == 0:
+                    print('_'.center(8), end='')
+                else:
+                    print(('X' if self.gameState.display_board[loc] % 2 == 1 else 'O').center(8), end='')
             print('\r\n\r\n')
 
     def start_play(self, player1, player2, start_player=1, is_shown=1):
@@ -214,10 +179,10 @@ class Game(object):
         while True:
             player_in_turn = players[self.currentPlayer]
             move = player_in_turn.get_action(self.gameState)
-            self.gameState, _, _ = self.gameState.takeAction(move)
+            self.gameState = self.gameState.takeAction(move)
             if is_shown:
                 self.graphic(player1.player, player2.player)
-            winner = self.gameState.isEndGame
+            winner = self.gameState.checkForEndGame()
             if winner != 0:
                 if is_shown:
                     if winner == 2:
@@ -235,12 +200,12 @@ class Game(object):
             states.append(self.gameState.get_current_state())
             mcts_probs.append(move_probs)
             current_players.append(self.currentPlayer)
-            self.gameState, _, _ = self.gameState.takeAction(move)
+            self.gameState = self.gameState.takeAction(move)
 
             if is_shown:
                 self.graphic(1, -1)
 
-            winner = self.gameState.isEndGame
+            winner = self.gameState.checkForEndGame()
             if winner != 0:
                 winners_z = np.zeros(len(current_players))
                 if winner != 2:

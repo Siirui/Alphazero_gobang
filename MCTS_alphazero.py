@@ -77,11 +77,11 @@ class MCTS(object):
         node = self.root
         while not node.is_leaf():
             action, node = node.select(self.c_puct)
-            state, _, _ = state.takeAction(action)
+            state = state.takeAction(action)
 
         action_probs, leaf_value = self.policy(state)
 
-        winner = state.isEndGame
+        winner = state.checkForEndGame()
 
         if winner == 0:
             node.expand(action_probs)

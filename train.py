@@ -11,6 +11,7 @@ class TrainPipeline(object):
     def __init__(self, init_model=None):
         self.grid_shape = (6, 6)
         self.learning_rate = 2e-3
+        self.n = 4
         self.lr_multiplier = 1.0
         self.n_simulation = 400
         self.c_puct = 5
@@ -21,11 +22,11 @@ class TrainPipeline(object):
         self.epochs = 5
         self.kl_targ = 50
         self.check_freq = 50
-        self.game_batch_num = 1500
+        self.game_batch_num = 1
         self.best_win_ratio = 0.0
         self.pure_mcts_simulation_num = 1000
         self.episode_len = None
-        self.game = Game(self.grid_shape)
+        self.game = Game(self.grid_shape, self.n)
         self.data_buffer = deque(maxlen=self.buffer_size)
         if init_model:
             self.policy_value_net = PolicyValueNet(
@@ -42,11 +43,26 @@ class TrainPipeline(object):
             is_selfplay=1
         )
 
+    def augment_data(self, play_data):
+        extend_data = []
+        for state, mcts_prob, winner in play_data:
+            for i in [1, 2, 3, 4]:
+                equal_state = np.array([np.rot90(s, i) for s in state])
+                equal_mcts_prob = np.rot90(np.flipud(
+                    mcts_prob.reshape(self.grid_shape[0], self.grid_shape[1])), i)
+                extend_data.append((equal_state, np.flipud(equal_mcts_prob).flatten(), winner))
+
+                equal_state = np.array([np.fliplr(s) for s in equal_state])
+                equal_mcts_prob = np.fliplr(equal_mcts_prob)
+                extend_data.append((equal_state, np.flipud(equal_mcts_prob).flatten(), winner))
+        return extend_data
+
     def collect_selfplay_data(self, n_games=1):
         for i in range(n_games):
-            winner, play_data = self.game.start_self_play(self.mcts_player, temp=self.temp)
+            winner, play_data = self.game.start_self_play(self.mcts_player, is_shown=1, temp=self.temp)
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
+            play_data = self.augment_data(play_data)
             self.data_buffer.extend(play_data)
 
     def policy_update(self):
