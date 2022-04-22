@@ -5,36 +5,41 @@ from game import GameState, Game
 from agents import MCTSPlayer
 from model import PolicyValueNet
 from MCTS_pure import MCTSPlayer as MCTS_Pure
+import pandas as pd
+
 
 
 class TrainPipeline(object):
     def __init__(self, init_model=None):
-        self.grid_shape = (15, 15)
+        self.grid_shape = (9, 9)
         self.learning_rate = 2e-3
         self.n = 5
         self.lr_multiplier = 1.0
-        self.n_simulation = 400
+        self.n_simulation = 800
         self.c_puct = 5
         self.temp = 1.0
         self.play_batch_size = 1
-        self.buffer_size = 10000
-        self.batch_size = 512
+        self.buffer_size = 20000
+        self.batch_size = 1024
         self.epochs = 5
         self.kl_targ = 50
         self.check_freq = 50
-        self.game_batch_num = 100
+        self.game_batch_num = 1000
         self.best_win_ratio = 0.0
-        self.pure_mcts_simulation_num = 1000
+        self.pure_mcts_simulation_num = 1200
         self.episode_len = None
         self.game = Game(self.grid_shape, self.n)
         self.data_buffer = deque(maxlen=self.buffer_size)
+        self.loss = []
+        self.entropy = []
         if init_model:
             self.policy_value_net = PolicyValueNet(
-                self.grid_shape, model_file=init_model
+                self.grid_shape, model_file=init_model,
+                use_gpu=True
             )
         else:
             self.policy_value_net = PolicyValueNet(
-                self.grid_shape
+                self.grid_shape, use_gpu=True
             )
         self.mcts_player = MCTSPlayer(
             self.policy_value_net.policy_value_function,
@@ -101,6 +106,8 @@ class TrainPipeline(object):
         print(f"kl: {kl:.5f}, lr_multiplier:{self.lr_multiplier:.3f}, "
               f"loss:{loss}, entropy:{entropy}, explained_var_old:{explained_var_old:.3f}, "
               f"explained_var_new:{explained_var_new:.3f}")
+        self.loss.append(loss)
+        self.entropy.append(entropy)
         return loss, entropy
 
     def policy_evaluate(self, n_games=10):
@@ -129,11 +136,14 @@ class TrainPipeline(object):
                 if (i + 1) % self.check_freq == 0:
                     print(f"current self-play batch: {i + 1}")
                     win_ratio = self.policy_evaluate()
-                    self.policy_value_net.save_model("./current_policy.model")
+                    self.policy_value_net.save_model(f"./current_policy_{self.grid_shape[0]}.model")
                     if win_ratio > self.best_win_ratio:
                         print("New best policy!")
-                        self.policy_value_net.save_model('./best_policy.mode')
-                        if self.best_win_ratio == 1.0 and self.pure_mcts_simulation_num < 5000:
+                        self.policy_value_net.save_model(f'./best_policy_{self.grid_shape[0]}.model')
+                        df = pd.DataFrame({"loss": self.loss, "entropy": self.entropy})
+                        df.to_csv(f"./data_{i}.csv")
+                        self.best_win_ratio = win_ratio
+                        if self.best_win_ratio == 1.0 and self.pure_mcts_simulation_num < 10000:
                             self.pure_mcts_simulation_num += 1000
                             self.best_win_ratio = 0.0
         except KeyboardInterrupt:
@@ -141,7 +151,7 @@ class TrainPipeline(object):
 
 
 if __name__ == '__main__':
-    training_pipeline = TrainPipeline()
+    training_pipeline = TrainPipeline("best_policy_9.model")
     training_pipeline.run()
 
 

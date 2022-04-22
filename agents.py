@@ -1,6 +1,6 @@
 from MCTS_alphazero import MCTS
 import numpy as np
-
+import re
 
 class MCTSPlayer(object):
     def __init__(self, policy_value_function, c_puct=5, n_simulation=2000, is_selfplay=0):
@@ -43,23 +43,24 @@ class MCTSPlayer(object):
 
 
 class HumanPlayer(object):
-    def __init__(self):
+    def __init__(self, grid_shape):
         self.player = None
+        self.grid_shape = grid_shape
 
     def set_player_ind(self, p):
         self.player = p
 
-    def get_action(self, board):
+    def get_action(self, state):
         try:
             location = input("Your move: ")
-            if isinstance(location, str):
-                location = [int(n, 10) for n in location.split(",")]
-            move = board.location_to_move(location)
+            han = re.compile(",")
+            move = re.split(han, location)
+            move = int(move[0]) * self.grid_shape[1] + int(move[1])
         except Exception as e:
             move = -1
-        if move == -1 or move not in board.availables:
+        if move == -1 or move not in state.allowedActions:
             print("invalid move")
-            move = self.get_action(board)
+            move = self.get_action(state)
         return move
 
     def __str__(self):
